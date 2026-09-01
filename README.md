@@ -1,5 +1,41 @@
 # Companion-AI Core Loop: Memory & Evaluation
 
+## Getting Started
+
+1. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   # Add your OPENAI_API_KEY to .env to enable true memory extraction
+   ```
+
+3. **Run the Application**
+   ```bash
+   python -m app.cli
+   ```
+
+4. **Run Tests**
+   ```bash
+   PYTHONPATH=. pytest tests/
+   ```
+
+## Architecture
+
+Please see `ARCHITECTURE.md` for a detailed breakdown of the system components.
+
+## Tasks Completed
+
+- SQLite Persistence
+- Memory Extraction (via LLM)
+- Contradiction Resolution (Deduplication and Supersession)
+- Relevant Memory Retrieval
+- Immutable Persona Anchoring
+- Deterministic Tests
+
 ## Project Purpose
 This project is a prototype of a companion-style conversational AI. The goal is to demonstrate a robust, persistent memory architecture and consistent persona handling, showing that the system can truly "remember" facts across sessions, handle contradictions, and maintain character, rather than just relying on a large LLM context window.
 
