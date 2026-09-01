@@ -1,0 +1,5 @@
+python-dotenv
+pydantic
+pytest
+openai
+anthropic
