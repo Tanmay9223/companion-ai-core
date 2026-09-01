@@ -13,7 +13,7 @@ class MemoryStore:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        now = datetime.datetime.utcnow().isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         memory_id = str(uuid.uuid4())
         
         # Phase 4: Contradiction & Duplicate Resolution

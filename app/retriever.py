@@ -19,7 +19,7 @@ class MemoryRetriever:
         conn.close()
         
         scored_memories = []
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         
         for row in rows:
             memory = dict(row)
