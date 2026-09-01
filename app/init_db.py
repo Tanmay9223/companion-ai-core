@@ -27,6 +27,14 @@ def init_db():
         metadata TEXT
     );
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS conversation_turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at DATETIME NOT NULL
+    );
+    """)
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")

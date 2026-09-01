@@ -5,56 +5,156 @@ from .extractor import MemoryExtractor
 from .memory_store import MemoryStore
 from .retriever import MemoryRetriever
 from .persona_manager import PersonaManager
+from .conversation_history import ConversationHistory
+
+
+def print_help():
+    print("--- Commands ---")
+    print("  /memories   Show all active memories")
+    print("  /history    Show all memories including superseded/expired")
+    print("  /debug      Toggle debug mode (shows injected context)")
+    print("  /exit       Quit the application")
+    print("----------------")
+
 
 def main():
     print("Starting Companion-AI CLI...")
     init_db()
+
     adapter = LLMAdapter()
     extractor = MemoryExtractor()
     store = MemoryStore()
     retriever = MemoryRetriever()
     persona = PersonaManager()
-    
+    history = ConversationHistory()
+
+    # Run memory decay on startup to retire stale plans/events
+    expired = store.decay_stale_memories()
+    if expired > 0:
+        print(f"[Decay] Expired {expired} stale plan/event memories.")
+
+    debug_mode = False
+
     print("Welcome to Companion-AI! Type /exit to quit.")
-    print("Type /memories to see current active memories.")
-    
+    print("Type /memories, /history, /debug, or /exit.")
+
+    # Show if there is prior context
+    recent = history.get_recent_turns()
+    if recent:
+        print(f"[Session] Restored {len(recent)} prior conversation turns.")
+
+    print()
+
     while True:
         try:
-            user_input = input("User: ")
-            if user_input.strip() == "/exit":
-                break
-            if user_input.strip() == "/memories":
-                memories = store.get_all_active_memories()
-                print("--- Active Memories ---")
-                for m in memories:
-                    print(f"[{m['memory_type']}] {m['subject']} -> {m['predicate']} = {m['value']}")
-                print("-----------------------")
+            user_input = input("You: ").strip()
+            if not user_input:
                 continue
-            
-            # Retrieve relevant active memories
-            relevant_memories = retriever.retrieve_relevant_memories(user_input)
+
+            # --- Handle slash commands ---
+            if user_input == "/exit":
+                print("Goodbye!")
+                break
+
+            if user_input == "/memories":
+                memories = store.get_all_active_memories()
+                if not memories:
+                    print("  (no active memories)")
+                else:
+                    print("--- Active Memories ---")
+                    for m in memories:
+                        print(
+                            f"  [{m['memory_type']}] {m['subject']} → {m['predicate']} = {m['value']}"
+                        )
+                    print(f"  ({len(memories)} total)")
+                    print("-----------------------")
+                continue
+
+            if user_input == "/history":
+                all_mems = store.get_all_memories_with_status()
+                if not all_mems:
+                    print("  (no memories)")
+                else:
+                    print("--- All Memories (including superseded/expired) ---")
+                    for m in all_mems:
+                        status_icon = {
+                            "active": "●",
+                            "superseded": "○",
+                            "expired": "✗",
+                        }.get(m["status"], "?")
+                        supersedes = (
+                            f" (supersedes {m['supersedes_id'][:8]}…)"
+                            if m.get("supersedes_id")
+                            else ""
+                        )
+                        print(
+                            f"  {status_icon} [{m['status']}] {m['subject']} → {m['predicate']} = {m['value']}{supersedes}"
+                        )
+                    print(f"  ({len(all_mems)} total)")
+                    print("---------------------------------------------------")
+                continue
+
+            if user_input == "/debug":
+                debug_mode = not debug_mode
+                print(f"  Debug mode: {'ON' if debug_mode else 'OFF'}")
+                continue
+
+            if user_input.startswith("/"):
+                print_help()
+                continue
+
+            # --- Core loop ---
+
+            # 1. Retrieve relevant active memories
+            relevant_memories = retriever.retrieve_relevant_memories(user_input, top_k=5)
+
+            # 2. Build system prompt: persona + retrieved memories
             context_blocks = [persona.get_system_prompt_header()]
             if relevant_memories:
-                context_blocks.append("\nRelevant memories about the user:")
+                context_blocks.append("\nRELEVANT MEMORIES ABOUT THE USER (use these to inform your response):")
                 for m in relevant_memories:
-                    context_blocks.append(f"- {m['subject']} {m['predicate']} {m['value']}")
-            
-            context_string = "\n".join(context_blocks)
-            system_prompt = context_string
-            
-            response = adapter.generate_response(system_prompt, user_input)
-            print(f"Robin: {response}")
-            
-            # Extract memory (async in a real app)
+                    context_blocks.append(
+                        f"- {m['subject']} {m['predicate']}: {m['value']}"
+                    )
+
+            system_prompt = "\n".join(context_blocks)
+
+            if debug_mode:
+                print(f"\n[Debug] System prompt ({len(system_prompt)} chars):")
+                print(f"  Retrieved {len(relevant_memories)} memories")
+                for m in relevant_memories:
+                    print(
+                        f"    → {m['subject']} {m['predicate']} = {m['value']}"
+                    )
+                print()
+
+            # 3. Generate response with conversation history
+            recent_turns = history.get_recent_turns()
+            response = adapter.generate_response(
+                system_prompt, user_input, history=recent_turns
+            )
+            print(f"\nRobin: {response}\n")
+
+            # 4. Persist conversation turns
+            history.add_turn("user", user_input)
+            history.add_turn("assistant", response)
+
+            # 5. Extract memories from user input
             extraction = extractor.extract_memories(user_input)
             if extraction.is_memory_worthy:
                 for memory in extraction.memories:
-                    mem_id, status = store.insert_memory(memory, source_text=user_input)
-                    print(f"[Debug] Extracted memory: {memory.subject} {memory.predicate} {memory.value} ({status})")
-                    
+                    mem_id, status = store.insert_memory(
+                        memory, source_text=user_input
+                    )
+                    if debug_mode:
+                        print(
+                            f"[Debug] Memory: {memory.subject} {memory.predicate} = {memory.value} ({status})"
+                        )
+
         except (KeyboardInterrupt, EOFError):
-            print("\nExiting...")
+            print("\nGoodbye!")
             break
+
 
 if __name__ == "__main__":
     main()

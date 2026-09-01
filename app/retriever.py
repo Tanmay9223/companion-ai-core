@@ -19,17 +19,24 @@ class MemoryRetriever:
         conn.close()
         
         scored_memories = []
-        now = datetime.datetime.now(datetime.UTC)
+        now = datetime.datetime.utcnow()
         
         for row in rows:
             memory = dict(row)
-            # Keyword score
-            text_to_search = f"{memory['subject']} {memory['predicate']} {memory['value']}".lower()
+            # Keyword score — search across all textual fields
+            text_to_search = (
+                f"{memory['subject']} {memory['predicate']} {memory['value']} "
+                f"{memory.get('source_text', '')} {memory.get('memory_type', '')}"
+            ).lower()
             keyword_score = sum(1 for kw in keywords if kw in text_to_search) * 1.5
             
             # Recency penalty
             try:
-                last_accessed = datetime.datetime.fromisoformat(memory['last_accessed_at'])
+                ts = memory['last_accessed_at']
+                # Strip timezone suffix if present so we always get a naive datetime
+                if ts and ts.endswith('+00:00'):
+                    ts = ts.replace('+00:00', '')
+                last_accessed = datetime.datetime.fromisoformat(ts)
                 days_old = (now - last_accessed).days
                 recency_penalty = min(days_old * 0.05, 0.5)
             except (ValueError, TypeError):

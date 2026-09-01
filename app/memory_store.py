@@ -13,7 +13,7 @@ class MemoryStore:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        now = datetime.datetime.now(datetime.UTC).isoformat()
+        now = datetime.datetime.utcnow().isoformat()
         memory_id = str(uuid.uuid4())
         
         # Phase 4: Contradiction & Duplicate Resolution
@@ -74,3 +74,58 @@ class MemoryStore:
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
+
+    def get_all_memories_with_status(self):
+        """Return all memories including superseded ones, for debug inspection."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM memories ORDER BY created_at DESC")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+
+    def get_superseded_chain(self, memory_id: str):
+        """Walk the supersession chain backwards from a given memory."""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        chain = []
+        current_id = memory_id
+        while current_id:
+            cursor.execute("SELECT * FROM memories WHERE id = ?", (current_id,))
+            row = cursor.fetchone()
+            if row:
+                mem = dict(row)
+                chain.append(mem)
+                current_id = mem.get("supersedes_id")
+            else:
+                break
+        conn.close()
+        return chain
+
+    def decay_stale_memories(self, max_age_days: int = 30):
+        """Mark stale plan/event memories as 'expired' if they are older than max_age_days.
+
+        This implements the 'decay' requirement — plans and events that have
+        passed their useful window are retired from active retrieval while
+        remaining in the database for historical reference.
+        """
+        now = datetime.datetime.utcnow()
+        cutoff = (now - datetime.timedelta(days=max_age_days)).isoformat()
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """UPDATE memories
+               SET status = 'expired', updated_at = ?
+               WHERE status = 'active'
+                 AND memory_type IN ('plan', 'event')
+                 AND created_at < ?""",
+            (now.isoformat(), cutoff),
+        )
+        expired_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return expired_count
+
