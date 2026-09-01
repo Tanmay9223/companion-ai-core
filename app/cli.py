@@ -47,8 +47,8 @@ def main():
             extraction = extractor.extract_memories(user_input)
             if extraction.is_memory_worthy:
                 for memory in extraction.memories:
-                    store.insert_memory(memory, source_text=user_input)
-                    print(f"[Debug] Extracted memory: {memory.subject} {memory.predicate} {memory.value}")
+                    mem_id, status = store.insert_memory(memory, source_text=user_input)
+                    print(f"[Debug] Extracted memory: {memory.subject} {memory.predicate} {memory.value} ({status})")
                     
         except (KeyboardInterrupt, EOFError):
             print("\nExiting...")
