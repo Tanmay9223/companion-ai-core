@@ -1,106 +1,242 @@
 # Companion-AI Core Loop: Memory & Evaluation
 
-A prototype companion-style conversational AI with a robust, persistent memory architecture and consistent persona handling.
+A prototype companion-style conversational AI with persistent memory, contradiction handling, and consistent persona — built for the Tech Generalist take-home assignment.
 
-## Quick Start
+---
+
+## Prerequisites
+
+Install **Docker** on your machine or VM:
+- **Mac**: https://docs.docker.com/desktop/install/mac-install/
+- **Windows**: https://docs.docker.com/desktop/install/windows-install/
+- **Linux (Ubuntu/Debian)**:
+  ```bash
+  sudo apt-get update && sudo apt-get install -y docker.io
+  sudo systemctl start docker
+  sudo usermod -aG docker $USER
+  # Log out and log back in, then verify:
+  docker --version
+  ```
+
+That's it. No Python, no pip, no virtual environments needed.
+
+---
+
+## Quick Start (3 steps)
+
+### Step 1: Clone the repo
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+git clone https://github.com/Tanmay9223/companion-ai-core.git
+cd companion-ai-core
+```
 
-# 2. Configure environment
+### Step 2: Add your API key
+
+```bash
 cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
-
-# 3. Run the companion
-python -m app
-
-# 4. Run tests
-PYTHONPATH=. pytest tests/ -v
 ```
 
-## Architecture
-
-The system operates as a CLI application that orchestrates an LLM with a dedicated memory store.
+Open `.env` in any editor and replace `your_api_key_here` with your real OpenAI API key:
 
 ```
-User Input → Retrieve Relevant Memories → Build Prompt (Persona + Memories + History) → LLM → Response
-                                                                                        ↓
-                                                                          Extract Memories → Resolve Contradictions → SQLite
+OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-- **Memory Store**: SQLite stores structured facts as `(subject, predicate, value)` rows with lifecycle tracking (`active` → `superseded` / `expired`).
-- **Retrieval**: Hybrid keyword + importance + recency scoring. Only relevant active memories are injected into the prompt.
-- **Contradiction Resolution**: New facts matching the same `(subject, predicate)` as an existing active memory are classified as duplicates or contradictions. Contradictions supersede the old fact while preserving it historically.
-- **Memory Decay**: Stale `plan` and `event` memories are automatically expired after 30 days on startup.
-- **Persona**: Canonical personality traits, opinions, and style are loaded from `config/persona.yaml` and prioritized over conversational history to prevent identity drift.
-- **Conversation History**: Recent turns are persisted to SQLite and restored on restart for cross-session conversational continuity.
+### Step 3: Run
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full component breakdown and request lifecycle.
+```bash
+./run.sh
+```
+
+This builds the Docker image, installs all dependencies inside the container, and starts the interactive chat. Your memory database is stored in `./data/` so it persists across runs.
+
+> **Windows users**: If `./run.sh` doesn't work, run the two commands manually:
+> ```bash
+> docker build -t companion-ai .
+> docker run -it --rm --env-file .env -v "%cd%/data:/app/data" -e DB_PATH=/app/data/memory.sqlite companion-ai
+> ```
+
+---
+
+## Run Tests
+
+```bash
+./run_tests.sh
+```
+
+Or manually:
+
+```bash
+docker build -t companion-ai .
+docker run --rm companion-ai pytest tests/ -v
+```
+
+No API key needed for tests — they use deterministic SQLite fixtures.
+
+---
+
+## Run Evaluation Harness
+
+```bash
+./run_evals.sh
+```
+
+Or manually:
+
+```bash
+docker build -t companion-ai .
+docker run --rm companion-ai python -m eval.run_evals
+```
+
+No API key needed — the eval harness drives the memory engine directly with synthetic data.
+
+**Latest results: 72/72 assertions passed, 7/7 scenarios passed (100% pass rate)**
+
+The harness covers 7 scenarios:
+
+| # | Scenario | What it tests |
+|---|---|---|
+| 1 | Basic Fact Insertion and Recall | Store a fact, verify retrieval |
+| 2 | Contradiction Supersession | Old fact → superseded, new fact → active |
+| 3 | Duplicate Detection | Same fact twice → no duplicate created |
+| 4 | Long-Range Recall (40+ turns) | Insert 40 filler facts, still retrieve original |
+| 5 | Sequential Contradictions (3 changes) | Only latest value is active |
+| 6 | Memory Decay | Old plans expire, identity facts don't |
+| 7 | Persona Consistency | YAML traits present in system prompt |
+
+**Weaknesses identified by the harness:**
+1. Retrieval is keyword-based — semantically similar but lexically different queries will miss
+2. Entity normalization depends on LLM consistency
+3. Persona consistency is strongly prompted but not mathematically guaranteed
+4. Decay is time-based only — no semantic decay for emotional states
+
+---
 
 ## CLI Commands
 
-| Command | Description |
+Once inside the chat loop:
+
+| Command | What it does |
 |---|---|
 | `/memories` | Show all active memories |
 | `/history` | Show all memories including superseded and expired |
-| `/debug` | Toggle debug mode (shows injected context per turn) |
-| `/exit` | Quit the application |
+| `/debug` | Toggle debug mode (shows what context was injected) |
+| `/exit` | Quit |
 
-## Inspecting the Database
-
-Outside of a chat session, you can inspect the full memory database:
-
-```bash
-python -m app.inspect_memory
-```
-
-## Architecture Decisions
-
-| Decision | Reasoning |
-|---|---|
-| **SQLite** over Postgres/Vector DB | Zero infrastructure, transactional, inspectable, relational — perfect for structured contradiction handling |
-| **Structured facts** over raw embeddings | Deterministic contradiction detection via `(subject, predicate)` matching |
-| **Hybrid retrieval** over pure vector search | Achievable in constrained time; exact entity matches + importance weighting |
-| **Persona isolation** from memory | Prevents identity drift — YAML config is immutable and highest-priority |
-
-See [`DECISIONS.md`](DECISIONS.md) for full ADRs.
-
-## Technology Stack
-
-- **Language**: Python 3.11+
-- **Database**: SQLite (built-in)
-- **Schemas**: Pydantic (structured LLM outputs)
-- **LLM**: OpenAI GPT-4o-mini (configurable)
-- **Testing**: pytest
-- **Environment**: python-dotenv
-
-## Known Limitations
-
-- Entity resolution may struggle with highly ambiguous references
-- LLM extraction can occasionally produce unstructured or malformed facts
-- Keyword-based retrieval may miss subtly related memories (embeddings are a future improvement)
-- See [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for a comprehensive list
-
-## What Was Tried and Abandoned
-
-- **Vector embeddings for retrieval**: Initially considered using `sentence-transformers` to compute local embeddings and store them in SQLite for cosine-similarity search. Abandoned because (a) it added a heavy dependency for the MVP, (b) structured `(subject, predicate)` matching was more critical for contradiction detection than semantic similarity, and (c) keyword + importance scoring proved sufficient for the demo scenarios within the 18-hour window.
-- **LLM-in-the-loop contradiction resolution**: Considered passing both the old and new memory to the LLM and asking it to classify the relationship (duplicate, enrichment, or contradiction). Abandoned because it added latency and non-determinism to every memory write — the structured `(subject, predicate)` exact-match approach is faster, testable, and deterministic.
-- **Graph-based entity resolution**: Explored modeling entities as a graph (e.g., `user → sister → Neha`) to handle complex relationship queries. Deferred as over-engineering for the prototype — the dot-notation subject convention (`user.sister.Neha`) captures the same hierarchy in a simpler flat schema.
-- **Streaming responses**: Tried implementing streaming via `stream=True` in the OpenAI API for better UX latency. Abandoned to keep the core loop simple and debuggable — the focus is on memory architecture, not UX polish.
-
-## What Was Intentionally Left Out
-
-- Web/Mobile UI
-- Authentication and multi-user support
-- Cloud infrastructure / distributed vector databases
-- Voice and image modalities
-- Production-scale infra, load handling, or latency optimization
+---
 
 ## Demo Flow
 
-1. Start the app: `python -m app`
-2. State a fact: *"I'm interviewing at Acme next Thursday."*
-3. Restart the app (Ctrl+C, then `python -m app`). Ask: *"What did I have coming up?"* → Verify recall.
-4. State a contradicting fact: *"I didn't get the job at Acme."* → Use `/memories` and `/history` to see supersession.
-5. Ask a persona question: *"Do you prefer big parties or quiet cafés?"* → Verify response aligns with canonical persona.
+1. Start: `./run.sh`
+2. Say: *"I work at Acme as a software engineer."*
+3. Say: *"My sister Neha is visiting next weekend."*
+4. Quit: `/exit`
+5. Start again: `./run.sh`
+6. Ask: *"What do you remember about me?"* → Should recall Acme and Neha
+7. Say: *"I quit Acme and joined Google."*
+8. Type `/history` → Old "Acme" memory shows as superseded, "Google" is active
+9. Ask: *"Do you prefer big parties or quiet cafés?"* → Robin should answer with its canonical persona (prefers quiet cafés)
+
+---
+
+## Inspect the Database (outside the chat)
+
+```bash
+docker build -t companion-ai .
+docker run --rm -v "$(pwd)/data:/app/data" -e DB_PATH=/app/data/memory.sqlite companion-ai python -m app.inspect_memory
+```
+
+---
+
+## Architecture
+
+```
+User Input
+   ↓
+Retrieve Relevant Memories (keyword + importance + recency scoring)
+   ↓
+Build Prompt = Persona (YAML) + Retrieved Memories + Recent Conversation History
+   ↓
+LLM generates response
+   ↓
+Extract structured facts from user message (subject, predicate, value)
+   ↓
+Resolve: New? Duplicate? Contradiction? → Insert / Skip / Supersede
+   ↓
+SQLite (persists across restarts)
+```
+
+**Key design choices**:
+
+| Decision | Why |
+|---|---|
+| SQLite, not Postgres/Vector DB | Zero infra, transactional, inspectable, perfect for structured contradiction matching |
+| Structured facts `(subject, predicate, value)`, not embeddings | Deterministic contradiction detection — if `(user, employer)` already exists, a new value supersedes it |
+| Persona loaded from immutable YAML | Prevents identity drift — canonical traits can't be overwritten by conversation |
+| Keyword retrieval, not vector search | Achievable in the time constraint; exact entity match + importance weighting |
+
+See [`DECISIONS.md`](DECISIONS.md) for full architecture decision records.
+
+---
+
+## What Was Tried and Abandoned
+
+- **Vector embeddings**: Considered `sentence-transformers` for cosine-similarity retrieval. Dropped — structured `(subject, predicate)` matching was more critical for contradiction detection, and keyword scoring was sufficient for the demo.
+- **LLM-in-the-loop contradiction resolution**: Passing old+new memory to the LLM to classify the relationship. Dropped — too slow and non-deterministic. Exact-match is faster and testable.
+- **Graph-based entity resolution**: Modeling entities as a graph. Dropped — dot-notation (`user.sister.Neha`) captures hierarchy in a simpler flat schema.
+- **Streaming responses**: `stream=True` for better UX. Dropped — focus is on memory architecture, not UX polish.
+
+---
+
+## Known Limitations
+
+- Entity normalization depends on LLM consistency (mitigated with few-shot examples in the extraction prompt)
+- Keyword retrieval may miss semantically similar but lexically different queries
+- Persona consistency is strongly prompted but not mathematically guaranteed
+- See [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for the full list (10 items)
+
+---
+
+## Out of Scope (per assignment §4)
+
+- UI/UX polish
+- Authentication, billing, multi-user
+- Voice, image, video
+- Production infrastructure
+
+---
+
+## Project Structure
+
+```
+├── app/
+│   ├── __main__.py            # Entrypoint (python -m app)
+│   ├── cli.py                 # Interactive chat loop
+│   ├── llm_adapter.py         # OpenAI API integration
+│   ├── extractor.py           # LLM-powered memory extraction
+│   ├── memory_store.py        # SQLite CRUD + contradiction resolution + decay
+│   ├── retriever.py           # Relevant memory retrieval with scoring
+│   ├── conversation_history.py # Cross-session conversation persistence
+│   ├── persona_manager.py     # YAML persona → system prompt
+│   ├── schema.py              # Pydantic models for structured extraction
+│   ├── init_db.py             # SQLite schema initialization
+│   └── inspect_memory.py      # Standalone DB inspector
+├── config/
+│   └── persona.yaml           # Robin's canonical personality
+├── eval/
+│   ├── scenarios.py           # 7 synthetic test scenarios
+│   └── run_evals.py           # Evaluation harness (pass/fail + numbers)
+├── tests/                     # 15 deterministic unit tests
+├── Dockerfile                 # Containerized build
+├── run.sh                     # One-command launcher
+├── run_tests.sh               # One-command test runner
+├── run_evals.sh               # One-command eval harness runner
+├── requirements.txt
+├── .env.example
+├── ARCHITECTURE.md
+├── DECISIONS.md
+├── KNOWN_LIMITATIONS.md
+└── MEMORY_DESIGN.md
+```
+
