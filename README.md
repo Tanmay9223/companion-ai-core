@@ -82,6 +82,13 @@ See [`DECISIONS.md`](DECISIONS.md) for full ADRs.
 - Keyword-based retrieval may miss subtly related memories (embeddings are a future improvement)
 - See [`KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) for a comprehensive list
 
+## What Was Tried and Abandoned
+
+- **Vector embeddings for retrieval**: Initially considered using `sentence-transformers` to compute local embeddings and store them in SQLite for cosine-similarity search. Abandoned because (a) it added a heavy dependency for the MVP, (b) structured `(subject, predicate)` matching was more critical for contradiction detection than semantic similarity, and (c) keyword + importance scoring proved sufficient for the demo scenarios within the 18-hour window.
+- **LLM-in-the-loop contradiction resolution**: Considered passing both the old and new memory to the LLM and asking it to classify the relationship (duplicate, enrichment, or contradiction). Abandoned because it added latency and non-determinism to every memory write — the structured `(subject, predicate)` exact-match approach is faster, testable, and deterministic.
+- **Graph-based entity resolution**: Explored modeling entities as a graph (e.g., `user → sister → Neha`) to handle complex relationship queries. Deferred as over-engineering for the prototype — the dot-notation subject convention (`user.sister.Neha`) captures the same hierarchy in a simpler flat schema.
+- **Streaming responses**: Tried implementing streaming via `stream=True` in the OpenAI API for better UX latency. Abandoned to keep the core loop simple and debuggable — the focus is on memory architecture, not UX polish.
+
 ## What Was Intentionally Left Out
 
 - Web/Mobile UI
