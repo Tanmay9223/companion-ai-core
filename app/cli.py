@@ -1,4 +1,5 @@
 import os
+import logging
 from .llm_adapter import LLMAdapter
 from .init_db import init_db
 from .extractor import MemoryExtractor
@@ -6,6 +7,14 @@ from .memory_store import MemoryStore
 from .retriever import MemoryRetriever
 from .persona_manager import PersonaManager
 from .conversation_history import ConversationHistory
+
+# Configure file logging for debugging behind the scenes
+logging.basicConfig(
+    filename='companion.log',
+    filemode='a',
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 
 def print_help():
@@ -44,6 +53,7 @@ def main():
         print(f"[Session] Restored {len(recent)} prior conversation turns.")
 
     print()
+    logging.info("=== New CLI Session Started ===")
 
     while True:
         try:
@@ -54,6 +64,7 @@ def main():
             # --- Handle slash commands ---
             if user_input == "/exit":
                 print("Goodbye!")
+                logging.info("Session ended by user.")
                 break
 
             if user_input == "/memories":
@@ -107,6 +118,8 @@ def main():
 
             # 1. Retrieve relevant active memories
             relevant_memories = retriever.retrieve_relevant_memories(user_input, top_k=5)
+            logging.info(f"User Input: {user_input}")
+            logging.info(f"Retrieved Memories: {relevant_memories}")
 
             # 2. Build system prompt: persona + retrieved memories with provenance
             context_blocks = [persona.get_system_prompt_header()]
@@ -122,6 +135,7 @@ def main():
                     )
 
             system_prompt = "\n".join(context_blocks)
+            logging.info(f"Constructed System Prompt Length: {len(system_prompt)}")
 
             if debug_mode:
                 print(f"\n[Debug] System prompt ({len(system_prompt)} chars):")
@@ -134,9 +148,11 @@ def main():
 
             # 3. Generate response with conversation history
             recent_turns = history.get_recent_turns()
+            print("[Syra is typing...]")
             response = adapter.generate_response(
                 system_prompt, user_input, history=recent_turns
             )
+            logging.info(f"Syra Response: {response}")
             print(f"\nSyra: {response}\n")
 
             # 4. Persist conversation turns
@@ -144,7 +160,9 @@ def main():
             history.add_turn("assistant", response)
 
             # 5. Extract memories from user input
+            print("[Saving to memory...]")
             extraction = extractor.extract_memories(user_input)
+            logging.info(f"Extraction Result: {extraction}")
             if extraction.is_memory_worthy:
                 for memory in extraction.memories:
                     mem_id, status = store.insert_memory(

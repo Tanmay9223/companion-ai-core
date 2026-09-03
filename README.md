@@ -11,9 +11,11 @@ A working prototype of a companion-style conversational AI with persistent memor
 git clone https://github.com/Tanmay9223/companion-ai-core.git
 cd companion-ai-core
 
-# 2. Add your OpenAI API key
+# 2. Add your API key (supports OpenAI or Google Gemini)
 cp .env.example .env
-# Edit .env → replace your_api_key_here with your real key
+# Edit .env → set LLM_PROVIDER and add your key:
+#   For Gemini (free): LLM_PROVIDER=gemini + GOOGLE_API_KEY from https://aistudio.google.com/
+#   For OpenAI:        LLM_PROVIDER=openai + OPENAI_API_KEY
 
 # 3. Start the companion
 ./run.sh
@@ -24,6 +26,14 @@ cp .env.example .env
 # 5. Run evaluation harness (no API key needed)
 ./run_evals.sh
 ```
+
+## Debugging & Hallucination Inspection
+
+If you want to see exactly how the AI is reasoning, extracting, and recalling facts (or check if it's hallucinating), there are two tools built in:
+
+1. **`companion.log` File**: All background operations (database retrievals, the exact System Prompt constructed, the LLM's raw response, and the structured extraction JSON) are automatically logged to `companion.log` in real-time as you chat.
+2. **`/debug` Command**: While chatting in the terminal, type `/debug` to toggle live debugging. This prints the exact injected context and memory extractions directly into your console for every turn.
+
 
 ## Architecture Decisions
 

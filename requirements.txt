@@ -2,5 +2,5 @@ python-dotenv
 pydantic
 pytest
 openai
-anthropic
+google-genai
 pyyaml
