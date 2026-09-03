@@ -283,7 +283,7 @@ SCENARIOS = [
             {
                 "action": "assert_persona_contains",
                 "expected_strings": [
-                    "Robin",
+                    "Syra",
                     "Warm",
                     "quiet cafés",
                     "NEVER CONTRADICT",

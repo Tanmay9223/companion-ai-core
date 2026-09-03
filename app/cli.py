@@ -108,13 +108,17 @@ def main():
             # 1. Retrieve relevant active memories
             relevant_memories = retriever.retrieve_relevant_memories(user_input, top_k=5)
 
-            # 2. Build system prompt: persona + retrieved memories
+            # 2. Build system prompt: persona + retrieved memories with provenance
             context_blocks = [persona.get_system_prompt_header()]
             if relevant_memories:
                 context_blocks.append("\nRELEVANT MEMORIES ABOUT THE USER (use these to inform your response):")
+                context_blocks.append("When recalling a fact, naturally reference it (e.g., 'I remember you mentioned...')")
+                context_blocks.append("Do NOT fabricate memories — only reference facts listed below.\n")
                 for m in relevant_memories:
+                    source = m.get('source_text', '')
+                    source_note = f' (from: "{source}")' if source else ''
                     context_blocks.append(
-                        f"- {m['subject']} {m['predicate']}: {m['value']}"
+                        f"- {m['subject']} {m['predicate']}: {m['value']}{source_note}"
                     )
 
             system_prompt = "\n".join(context_blocks)
@@ -133,7 +137,7 @@ def main():
             response = adapter.generate_response(
                 system_prompt, user_input, history=recent_turns
             )
-            print(f"\nRobin: {response}\n")
+            print(f"\nSyra: {response}\n")
 
             # 4. Persist conversation turns
             history.add_turn("user", user_input)

@@ -60,7 +60,7 @@ def main():
         print(f"  RECENT CONVERSATION TURNS (last {len(turns)})")
         print(f"{'='*60}")
         for t in reversed(list(turns)):
-            prefix = "You" if t["role"] == "user" else "Robin"
+            prefix = "You" if t["role"] == "user" else "Syra"
             content_preview = t["content"][:80] + ("…" if len(t["content"]) > 80 else "")
             print(f"  [{prefix}] {content_preview}")
     except sqlite3.OperationalError:
