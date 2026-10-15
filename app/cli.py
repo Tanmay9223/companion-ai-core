@@ -135,9 +135,10 @@ def main():
                     )
 
             system_prompt = "\n".join(context_blocks)
-            logging.info(f"Constructed System Prompt Length: {len(system_prompt)}")
 
             if debug_mode:
+                logging.info(f"System prompt: {system_prompt}")
+                logging.info(f"Context length: {len(system_prompt)}")
                 print(f"\n[Debug] System prompt ({len(system_prompt)} chars):")
                 print(f"  Retrieved {len(relevant_memories)} memories")
                 for m in relevant_memories:
