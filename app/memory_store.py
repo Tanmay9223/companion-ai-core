@@ -75,12 +75,15 @@ class MemoryStore:
         conn.close()
         return [dict(row) for row in rows]
 
-    def get_all_memories_with_status(self):
+    def get_all_memories_with_status(self, include_superseded: bool = True):
         """Return all memories including superseded ones, for debug inspection."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM memories ORDER BY created_at DESC")
+        if include_superseded:
+            cursor.execute("SELECT * FROM memories ORDER BY created_at DESC")
+        else:
+            cursor.execute("SELECT * FROM memories WHERE status != 'superseded' ORDER BY created_at DESC")
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
