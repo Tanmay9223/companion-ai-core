@@ -1,5 +1,4 @@
 import pytest
-import os
 from app.persona_manager import PersonaManager
 
 def test_persona_manager_loads_valid_yaml(tmp_path):
