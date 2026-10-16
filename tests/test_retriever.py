@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import datetime
 import pytest
 from app.memory_store import MemoryStore
 from app.retriever import MemoryRetriever
