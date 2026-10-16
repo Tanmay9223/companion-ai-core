@@ -1,5 +1,4 @@
 import yaml
-import os
 
 class PersonaManager:
     def __init__(self, config_path="config/persona.yaml"):
