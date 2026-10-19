@@ -111,3 +111,53 @@ def test_contradiction_supersession(store):
     conn.close()
     
     assert old_status == "superseded"
+
+def test_get_all_memories_with_status(store):
+    # Insert first memory
+    mem1 = ExtractedMemory(
+        subject="user",
+        predicate="favorite_color",
+        value="blue",
+        memory_type="preference",
+        importance=0.5,
+        confidence=1.0
+    )
+    mem1_id, _ = store.insert_memory(mem1, "My favorite color is blue")
+
+    # Insert a new memory to supersede the first
+    mem2 = ExtractedMemory(
+        subject="user",
+        predicate="favorite_color",
+        value="red",
+        memory_type="preference",
+        importance=0.6,
+        confidence=1.0
+    )
+    mem2_id, _ = store.insert_memory(mem2, "Actually, I like red more now")
+
+    # Insert another unrelated active memory
+    mem3 = ExtractedMemory(
+        subject="user",
+        predicate="hobby",
+        value="reading",
+        memory_type="interest",
+        importance=0.7,
+        confidence=1.0
+    )
+    mem3_id, _ = store.insert_memory(mem3, "I enjoy reading books")
+
+    # Retrieve all memories
+    all_memories = store.get_all_memories_with_status()
+
+    # We should have 3 memories in total
+    assert len(all_memories) == 3
+
+    # They should be ordered by created_at DESC (most recent first)
+    assert all_memories[0]['id'] == mem3_id
+    assert all_memories[1]['id'] == mem2_id
+    assert all_memories[2]['id'] == mem1_id
+
+    # Verify statuses
+    assert all_memories[0]['status'] == "active"
+    assert all_memories[1]['status'] == "active"
+    assert all_memories[2]['status'] == "superseded"
