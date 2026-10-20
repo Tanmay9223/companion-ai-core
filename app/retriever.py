@@ -1,5 +1,4 @@
 import sqlite3
-import datetime
 from .init_db import DB_PATH
 
 class MemoryRetriever:
@@ -14,12 +13,11 @@ class MemoryRetriever:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM memories WHERE status = 'active'")
+        cursor.execute("SELECT *, CAST(julianday('now') - julianday(last_accessed_at) AS INTEGER) as days_old FROM memories WHERE status = 'active'")
         rows = cursor.fetchall()
         conn.close()
         
         scored_memories = []
-        now = datetime.datetime.utcnow()
         
         for row in rows:
             memory = dict(row)
@@ -31,15 +29,12 @@ class MemoryRetriever:
             keyword_score = sum(1 for kw in keywords if kw in text_to_search) * 1.5
             
             # Recency penalty
-            try:
-                ts = memory['last_accessed_at']
-                # Strip timezone suffix if present so we always get a naive datetime
-                if ts and ts.endswith('+00:00'):
-                    ts = ts.replace('+00:00', '')
-                last_accessed = datetime.datetime.fromisoformat(ts)
-                days_old = (now - last_accessed).days
+            days_old = memory.get('days_old')
+            if days_old is not None:
+                # use max(0, days_old) just in case
+                days_old = max(0, days_old)
                 recency_penalty = min(days_old * 0.05, 0.5)
-            except (ValueError, TypeError):
+            else:
                 recency_penalty = 0.0
                 
             # Importance weight
