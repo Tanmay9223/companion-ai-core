@@ -1,4 +1,3 @@
-import os
 import logging
 from .llm_adapter import LLMAdapter
 from .init_db import init_db
