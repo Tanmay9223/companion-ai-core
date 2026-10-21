@@ -287,16 +287,22 @@ def run_scenario(scenario):
 
 def _classify_active_failure(expected, active_memories, store):
     """Classify why an expected active memory was not found."""
-    all_mems = store.get_all_memories_with_status()
-    # Check if it exists but was incorrectly superseded
-    for m in all_mems:
-        if (m["subject"] == expected["subject"]
-                and m["predicate"] == expected["predicate"]
-                and m["value"] == expected["value"]):
-            if m["status"] == "superseded":
-                return "supersession_failure"
-            if m["status"] == "expired":
-                return "decay_failure"
+    import sqlite3
+    conn = sqlite3.connect(store.db_path)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT status FROM memories WHERE subject = ? AND predicate = ? AND value = ?",
+        (expected["subject"], expected["predicate"], expected["value"])
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    for m in rows:
+        if m["status"] == "superseded":
+            return "supersession_failure"
+        if m["status"] == "expired":
+            return "decay_failure"
     return "memory_miss"
 
 
