@@ -111,6 +111,24 @@ def test_contradiction_supersession(store):
     
     assert old_status == "superseded"
 
+    # Test get_superseded_chain
+    chain = store.get_superseded_chain(mem2_id)
+    assert len(chain) == 2
+    assert chain[0]['id'] == mem2_id
+    assert chain[0]['value'] == "Globex"
+    assert chain[1]['id'] == mem1_id
+    assert chain[1]['value'] == "Acme"
+
+    # Test get_superseded_chain with older memory
+    chain_old = store.get_superseded_chain(mem1_id)
+    assert len(chain_old) == 1
+    assert chain_old[0]['id'] == mem1_id
+    assert chain_old[0]['value'] == "Acme"
+
+    # Test get_superseded_chain with non-existent memory
+    chain_none = store.get_superseded_chain("nonexistent")
+    assert len(chain_none) == 0
+
 def test_get_all_memories_with_status(store):
     # Insert first memory
     mem1 = ExtractedMemory(
