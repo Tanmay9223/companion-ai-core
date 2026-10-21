@@ -198,12 +198,10 @@ def run_scenario(scenario):
                     contradiction_checks["total"] += 1
 
             elif action == "assert_count":
-                active = store.get_all_active_memories()
-                if "subject" in step and "predicate" in step:
-                    active = [
-                        m for m in active
-                        if m["subject"] == step["subject"] and m["predicate"] == step["predicate"]
-                    ]
+                active = store.get_all_active_memories(
+                    subject=step.get("subject"),
+                    predicate=step.get("predicate")
+                )
                 count = len(active)
                 if count == step["expected_count"]:
                     score.assertions_passed += 1

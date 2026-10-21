@@ -66,11 +66,23 @@ class MemoryStore:
             conn.close()
             return memory_id, "new"
         
-    def get_all_active_memories(self):
+    def get_all_active_memories(self, subject: str = None, predicate: str = None):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM memories WHERE status = 'active'")
+
+        query = "SELECT * FROM memories WHERE status = 'active'"
+        params = []
+
+        if subject is not None:
+            query += " AND subject = ?"
+            params.append(subject)
+
+        if predicate is not None:
+            query += " AND predicate = ?"
+            params.append(predicate)
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
