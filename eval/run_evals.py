@@ -176,15 +176,16 @@ def run_scenario(scenario):
                     contradiction_checks["total"] += 1
 
             elif action == "assert_superseded_exists":
-                all_mems = store.get_all_memories_with_status()
                 expected = step["expected"]
-                found = any(
-                    m["subject"] == expected["subject"]
-                    and m["predicate"] == expected["predicate"]
-                    and m["value"] == expected["value"]
-                    and m["status"] == "superseded"
-                    for m in all_mems
+                conn = sqlite3.connect(store.db_path)
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT 1 FROM memories WHERE subject = ? AND predicate = ? AND value = ? AND status = 'superseded' LIMIT 1",
+                    (expected["subject"], expected["predicate"], expected["value"])
                 )
+                found = cursor.fetchone() is not None
+                conn.close()
+
                 if found:
                     score.assertions_passed += 1
                     contradiction_checks["passed"] += 1
