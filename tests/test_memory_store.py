@@ -1,7 +1,6 @@
 import os
 import sqlite3
 import pytest
-from app.init_db import init_db
 from app.memory_store import MemoryStore
 from app.schema import ExtractedMemory
 
