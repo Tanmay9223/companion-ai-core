@@ -13,6 +13,23 @@ load_dotenv()
 DB_PATH = os.getenv("DB_PATH", "memory.sqlite")
 
 
+def print_memories(cursor, status, title):
+    order_col = "created_at" if status == "active" else "updated_at"
+    cursor.execute(f"SELECT * FROM memories WHERE status = '{status}' ORDER BY {order_col} DESC")
+    records = cursor.fetchall()
+    print(f"\n{'='*60}")
+    print(f"  {title} ({len(records)})")
+    print(f"{'='*60}")
+    for m in records:
+        print(f"  [{m['memory_type']}] {m['subject']} → {m['predicate']} = {m['value']}")
+        if status == 'active':
+            print(f"         importance={m['importance']}  created={m['created_at']}")
+        elif status == 'superseded':
+            print(f"         superseded_at={m['updated_at']}  source=\"{m['source_text']}\"")
+        elif status == 'expired':
+            print(f"         expired_at={m['updated_at']}")
+
+
 def main():
     if not os.path.exists(DB_PATH):
         print(f"No database found at {DB_PATH}. Run the chat loop first.")
@@ -23,34 +40,13 @@ def main():
     cursor = conn.cursor()
 
     # --- Active memories ---
-    cursor.execute("SELECT * FROM memories WHERE status = 'active' ORDER BY created_at DESC")
-    active = cursor.fetchall()
-    print(f"\n{'='*60}")
-    print(f"  ACTIVE MEMORIES ({len(active)})")
-    print(f"{'='*60}")
-    for m in active:
-        print(f"  [{m['memory_type']}] {m['subject']} → {m['predicate']} = {m['value']}")
-        print(f"         importance={m['importance']}  created={m['created_at']}")
+    print_memories(cursor, 'active', 'ACTIVE MEMORIES')
 
     # --- Superseded memories ---
-    cursor.execute("SELECT * FROM memories WHERE status = 'superseded' ORDER BY updated_at DESC")
-    superseded = cursor.fetchall()
-    print(f"\n{'='*60}")
-    print(f"  SUPERSEDED MEMORIES ({len(superseded)})")
-    print(f"{'='*60}")
-    for m in superseded:
-        print(f"  [{m['memory_type']}] {m['subject']} → {m['predicate']} = {m['value']}")
-        print(f"         superseded_at={m['updated_at']}  source=\"{m['source_text']}\"")
+    print_memories(cursor, 'superseded', 'SUPERSEDED MEMORIES')
 
     # --- Expired memories ---
-    cursor.execute("SELECT * FROM memories WHERE status = 'expired' ORDER BY updated_at DESC")
-    expired = cursor.fetchall()
-    print(f"\n{'='*60}")
-    print(f"  EXPIRED MEMORIES ({len(expired)})")
-    print(f"{'='*60}")
-    for m in expired:
-        print(f"  [{m['memory_type']}] {m['subject']} → {m['predicate']} = {m['value']}")
-        print(f"         expired_at={m['updated_at']}")
+    print_memories(cursor, 'expired', 'EXPIRED MEMORIES')
 
     # --- Recent conversation turns ---
     try:
