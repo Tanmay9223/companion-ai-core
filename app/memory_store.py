@@ -8,6 +8,19 @@ class MemoryStore:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
         
+    def _insert_memory_record(self, cursor, memory_id: str, memory: ExtractedMemory, source_text: str, now: str, supersedes_id: str = None):
+        cursor.execute("""
+            INSERT INTO memories (
+                id, namespace, subject, predicate, value, memory_type,
+                source_text, importance, created_at, updated_at, last_accessed_at, status, supersedes_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            memory_id,
+            "user" if memory.subject.startswith("user") else "companion",
+            memory.subject, memory.predicate, memory.value, memory.memory_type,
+            source_text, memory.importance, now, now, now, "active", supersedes_id
+        ))
+
     def insert_memory(self, memory: ExtractedMemory, source_text: str):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
@@ -34,33 +47,13 @@ class MemoryStore:
             else:
                 # Contradiction / Supersede
                 cursor.execute("UPDATE memories SET status = 'superseded', updated_at = ? WHERE id = ?", (now, old_mem['id']))
-                cursor.execute("""
-                    INSERT INTO memories (
-                        id, namespace, subject, predicate, value, memory_type, 
-                        source_text, importance, created_at, updated_at, last_accessed_at, status, supersedes_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    memory_id,
-                    "user" if memory.subject.startswith("user") else "companion",
-                    memory.subject, memory.predicate, memory.value, memory.memory_type,
-                    source_text, memory.importance, now, now, now, "active", old_mem['id']
-                ))
+                self._insert_memory_record(cursor, memory_id, memory, source_text, now, supersedes_id=old_mem['id'])
                 conn.commit()
                 conn.close()
                 return memory_id, "superseded"
         else:
             # New memory
-            cursor.execute("""
-                INSERT INTO memories (
-                    id, namespace, subject, predicate, value, memory_type, 
-                    source_text, importance, created_at, updated_at, last_accessed_at, status
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                memory_id,
-                "user" if memory.subject.startswith("user") else "companion",
-                memory.subject, memory.predicate, memory.value, memory.memory_type,
-                source_text, memory.importance, now, now, now, "active"
-            ))
+            self._insert_memory_record(cursor, memory_id, memory, source_text, now)
             
             conn.commit()
             conn.close()
