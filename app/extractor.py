@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from dotenv import load_dotenv
 from .schema import ExtractionResult, ExtractedMemory
 
@@ -115,7 +116,6 @@ class MemoryExtractor:
 
     def _extract_gemini(self, prompt: str) -> ExtractionResult:
         """Extract using Google Gemini with JSON response parsing."""
-        import re
         from google.genai import types
 
         try:
