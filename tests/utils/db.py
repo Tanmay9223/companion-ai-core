@@ -1,5 +1,4 @@
 import os
-import sqlite3
 
 from app.init_db import init_db
 
