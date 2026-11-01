@@ -178,3 +178,17 @@ def test_get_all_memories_with_status(store):
     assert all_memories[0]['status'] == "active"
     assert all_memories[1]['status'] == "active"
     assert all_memories[2]['status'] == "superseded"
+
+    # Retrieve without superseded memories
+    active_only_memories = store.get_all_memories_with_status(include_superseded=False)
+
+    # We should have 2 memories in total
+    assert len(active_only_memories) == 2
+
+    # They should be ordered by created_at DESC
+    assert active_only_memories[0]['id'] == mem3_id
+    assert active_only_memories[1]['id'] == mem2_id
+
+    # Verify statuses are active
+    assert active_only_memories[0]['status'] == "active"
+    assert active_only_memories[1]['status'] == "active"
