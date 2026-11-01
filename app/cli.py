@@ -164,11 +164,9 @@ def main():
             extraction = extractor.extract_memories(user_input)
             logging.info(f"Extraction Result: {extraction}")
             if extraction.is_memory_worthy:
-                for memory in extraction.memories:
-                    mem_id, status = store.insert_memory(
-                        memory, source_text=user_input
-                    )
-                    if debug_mode:
+                results = store.insert_memories(extraction.memories, source_text=user_input)
+                if debug_mode:
+                    for memory, mem_id, status in results:
                         print(
                             f"[Debug] Memory: {memory.subject} {memory.predicate} = {memory.value} ({status})"
                         )

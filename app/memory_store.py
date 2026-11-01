@@ -21,12 +21,7 @@ class MemoryStore:
             source_text, memory.importance, now, now, now, "active", supersedes_id
         ))
 
-    def insert_memory(self, memory: ExtractedMemory, source_text: str):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        
-        now = datetime.datetime.utcnow().isoformat()
+    def _insert_single_memory(self, cursor, memory: ExtractedMemory, source_text: str, now: str):
         memory_id = str(uuid.uuid4())
         
         # Phase 4: Contradiction & Duplicate Resolution
@@ -41,24 +36,45 @@ class MemoryStore:
             if old_mem['value'].lower() == memory.value.lower():
                 # Duplicate
                 cursor.execute("UPDATE memories SET last_accessed_at = ? WHERE id = ?", (now, old_mem['id']))
-                conn.commit()
-                conn.close()
                 return old_mem['id'], "duplicate"
             else:
                 # Contradiction / Supersede
                 cursor.execute("UPDATE memories SET status = 'superseded', updated_at = ? WHERE id = ?", (now, old_mem['id']))
                 self._insert_memory_record(cursor, memory_id, memory, source_text, now, supersedes_id=old_mem['id'])
-                conn.commit()
-                conn.close()
                 return memory_id, "superseded"
         else:
             # New memory
             self._insert_memory_record(cursor, memory_id, memory, source_text, now)
-            
-            conn.commit()
-            conn.close()
             return memory_id, "new"
+
+    def insert_memory(self, memory: ExtractedMemory, source_text: str):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        now = datetime.datetime.utcnow().isoformat()
         
+        mem_id, status = self._insert_single_memory(cursor, memory, source_text, now)
+
+        conn.commit()
+        conn.close()
+        return mem_id, status
+
+    def insert_memories(self, memories: list[ExtractedMemory], source_text: str):
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        now = datetime.datetime.utcnow().isoformat()
+        results = []
+        for memory in memories:
+            mem_id, status = self._insert_single_memory(cursor, memory, source_text, now)
+            results.append((memory, mem_id, status))
+
+        conn.commit()
+        conn.close()
+        return results
+
     def get_all_active_memories(self, subject: str = None, predicate: str = None):
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
