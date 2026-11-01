@@ -6,8 +6,8 @@ load_dotenv()
 
 DB_PATH = os.getenv("DB_PATH", "memory.sqlite")
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
+def init_db(db_path=None):
+    conn = sqlite3.connect(db_path or DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS memories (
@@ -37,7 +37,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
-    print(f"Database initialized at {DB_PATH}")
+    print(f"Database initialized at {db_path or DB_PATH}")
 
 if __name__ == "__main__":
     init_db()
