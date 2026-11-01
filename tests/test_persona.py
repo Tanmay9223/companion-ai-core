@@ -24,3 +24,17 @@ def test_persona_manager_missing_file():
     manager = PersonaManager(config_path="nonexistent.yaml")
     prompt = manager.get_system_prompt_header()
     assert "System: You are a helpful companion." in prompt
+
+def test_persona_manager_malformed_yaml(tmp_path):
+    yaml_content = """
+identity:
+  name: [unclosed list
+"""
+    config_file = tmp_path / "malformed_persona.yaml"
+    config_file.write_text(yaml_content)
+
+    manager = PersonaManager(config_path=str(config_file))
+
+    assert manager.persona_data == {}
+    prompt = manager.get_system_prompt_header()
+    assert "System: You are a helpful companion." in prompt
