@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import pytest
+from app.init_db import init_db
 from app.memory_store import MemoryStore
 from app.schema import ExtractedMemory
 
@@ -12,28 +13,7 @@ def store():
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
         
-    conn = sqlite3.connect(TEST_DB)
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS memories (
-        id TEXT PRIMARY KEY,
-        namespace TEXT NOT NULL,
-        subject TEXT NOT NULL,
-        predicate TEXT NOT NULL,
-        value TEXT NOT NULL,
-        memory_type TEXT NOT NULL,
-        source_text TEXT,
-        importance REAL DEFAULT 0.5,
-        created_at DATETIME,
-        updated_at DATETIME,
-        last_accessed_at DATETIME,
-        status TEXT DEFAULT 'active',
-        supersedes_id TEXT,
-        metadata TEXT
-    );
-    """)
-    conn.commit()
-    conn.close()
+    init_db(TEST_DB)
     
     yield MemoryStore(db_path=TEST_DB)
     
