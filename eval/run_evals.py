@@ -27,6 +27,7 @@ from app.memory_store import MemoryStore
 from app.retriever import MemoryRetriever
 from app.persona_manager import PersonaManager
 from app.schema import ExtractedMemory
+from app.init_db import init_db
 from eval.scenarios import SCENARIOS
 from eval.scoring import EvalScore, HarnessReport, FAILURE_CLASSES
 
@@ -37,28 +38,7 @@ def setup_db():
     """Create a fresh SQLite database for evaluation."""
     if os.path.exists(EVAL_DB):
         os.remove(EVAL_DB)
-    conn = sqlite3.connect(EVAL_DB)
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS memories (
-        id TEXT PRIMARY KEY,
-        namespace TEXT NOT NULL,
-        subject TEXT NOT NULL,
-        predicate TEXT NOT NULL,
-        value TEXT NOT NULL,
-        memory_type TEXT NOT NULL,
-        source_text TEXT,
-        importance REAL DEFAULT 0.5,
-        created_at DATETIME,
-        updated_at DATETIME,
-        last_accessed_at DATETIME,
-        status TEXT DEFAULT 'active',
-        supersedes_id TEXT,
-        metadata TEXT
-    );
-    """)
-    conn.commit()
-    conn.close()
+    init_db(EVAL_DB)
 
 
 def insert_backdated(db_path, memory_dict, source_text, days_old):

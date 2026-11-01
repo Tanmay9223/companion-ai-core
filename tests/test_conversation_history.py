@@ -2,6 +2,7 @@ import os
 import sqlite3
 import pytest
 from app.conversation_history import ConversationHistory
+from app.init_db import init_db
 
 TEST_DB = "test_history.sqlite"
 
@@ -10,18 +11,7 @@ TEST_DB = "test_history.sqlite"
 def hist():
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
-    conn = sqlite3.connect(TEST_DB)
-    cursor = conn.cursor()
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS conversation_turns (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at DATETIME NOT NULL
-    );
-    """)
-    conn.commit()
-    conn.close()
+    init_db(TEST_DB)
 
     yield ConversationHistory(db_path=TEST_DB, max_turns=5)
 
