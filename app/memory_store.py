@@ -98,17 +98,20 @@ class MemoryStore:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        chain = []
-        current_id = memory_id
-        while current_id:
-            cursor.execute("SELECT * FROM memories WHERE id = ?", (current_id,))
-            row = cursor.fetchone()
-            if row:
-                mem = dict(row)
-                chain.append(mem)
-                current_id = mem.get("supersedes_id")
-            else:
-                break
+        cursor.execute("""
+            WITH RECURSIVE chain AS (
+                SELECT *
+                FROM memories
+                WHERE id = ?
+                UNION ALL
+                SELECT m.*
+                FROM memories m
+                INNER JOIN chain c ON c.supersedes_id = m.id
+            )
+            SELECT * FROM chain;
+        """, (memory_id,))
+        rows = cursor.fetchall()
+        chain = [dict(row) for row in rows]
         conn.close()
         return chain
 
