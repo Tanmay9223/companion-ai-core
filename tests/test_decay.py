@@ -4,16 +4,14 @@ import datetime
 import pytest
 from app.memory_store import MemoryStore
 from app.schema import ExtractedMemory
-from app.init_db import init_db
+from tests.utils.db import create_test_db
 
 TEST_DB = "test_decay.sqlite"
 
 
 @pytest.fixture
 def store():
-    if os.path.exists(TEST_DB):
-        os.remove(TEST_DB)
-    init_db(TEST_DB)
+    create_test_db(TEST_DB)
 
     yield MemoryStore(db_path=TEST_DB)
 
