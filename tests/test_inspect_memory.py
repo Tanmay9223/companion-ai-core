@@ -31,7 +31,7 @@ def test_print_memories_active(mock_print):
 
     print_memories(mock_cursor, 'active', 'ACTIVE MEMORIES')
 
-    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = 'active' ORDER BY created_at DESC")
+    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = ? ORDER BY created_at DESC", ('active',))
     mock_print.assert_any_call("  ACTIVE MEMORIES (1)")
     mock_print.assert_any_call("  [fact] user → name = Alice")
     mock_print.assert_any_call("         importance=0.8  created=2023-01-01 12:00:00")
@@ -53,7 +53,7 @@ def test_print_memories_superseded(mock_print):
 
     print_memories(mock_cursor, 'superseded', 'SUPERSEDED MEMORIES')
 
-    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = 'superseded' ORDER BY updated_at DESC")
+    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = ? ORDER BY updated_at DESC", ('superseded',))
     mock_print.assert_any_call("  SUPERSEDED MEMORIES (1)")
     mock_print.assert_any_call("  [fact] user → city = New York")
     mock_print.assert_any_call('         superseded_at=2023-02-01 12:00:00  source="I live in NYC"')
@@ -74,7 +74,7 @@ def test_print_memories_expired(mock_print):
 
     print_memories(mock_cursor, 'expired', 'EXPIRED MEMORIES')
 
-    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = 'expired' ORDER BY updated_at DESC")
+    mock_cursor.execute.assert_called_once_with("SELECT * FROM memories WHERE status = ? ORDER BY updated_at DESC", ('expired',))
     mock_print.assert_any_call("  EXPIRED MEMORIES (1)")
     mock_print.assert_any_call("  [plan] user → activity = meeting")
     mock_print.assert_any_call("         expired_at=2023-03-01 12:00:00")

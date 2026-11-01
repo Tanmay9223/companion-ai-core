@@ -15,7 +15,7 @@ DB_PATH = os.getenv("DB_PATH", "memory.sqlite")
 
 def print_memories(cursor, status, title):
     order_col = "created_at" if status == "active" else "updated_at"
-    cursor.execute(f"SELECT * FROM memories WHERE status = '{status}' ORDER BY {order_col} DESC")
+    cursor.execute(f"SELECT * FROM memories WHERE status = ? ORDER BY {order_col} DESC", (status,))
     records = cursor.fetchall()
     print(f"\n{'='*60}")
     print(f"  {title} ({len(records)})")
