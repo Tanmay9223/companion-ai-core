@@ -3,14 +3,16 @@ import sqlite3
 import pytest
 from app.memory_store import MemoryStore
 from app.schema import ExtractedMemory
-from tests.utils.db import create_test_db
+from app.init_db import init_db
 
 TEST_DB = "test_memory.sqlite"
 
 @pytest.fixture
 def store():
     # Setup
-    create_test_db(TEST_DB)
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
+    init_db(TEST_DB)
     
     yield MemoryStore(db_path=TEST_DB)
     
