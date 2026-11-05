@@ -13,7 +13,22 @@ class MemoryRetriever:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute("SELECT *, CAST(julianday('now') - julianday(last_accessed_at) AS INTEGER) as days_old FROM memories WHERE status = 'active'")
+        sql_query = "SELECT *, CAST(julianday('now') - julianday(last_accessed_at) AS INTEGER) as days_old FROM memories WHERE status = 'active'"
+        params = []
+
+        if keywords:
+            keyword_conditions = []
+            for kw in keywords:
+                like_pattern = f"%{kw}%"
+                keyword_conditions.append("(subject LIKE ? OR predicate LIKE ? OR value LIKE ? OR IFNULL(source_text, '') LIKE ? OR memory_type LIKE ?)")
+                params.extend([like_pattern] * 5)
+
+            combined_keyword_conds = " OR ".join(keyword_conditions)
+            sql_query += f" AND (importance > 0.8 OR {combined_keyword_conds})"
+        else:
+            sql_query += " AND importance > 0.8"
+
+        cursor.execute(sql_query, params)
         rows = cursor.fetchall()
         conn.close()
         
