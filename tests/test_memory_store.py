@@ -171,3 +171,58 @@ def test_get_all_memories_with_status(store):
     # Verify statuses are active
     assert active_only_memories[0]['status'] == "active"
     assert active_only_memories[1]['status'] == "active"
+
+def test_get_all_active_memories_with_filters(store):
+    mem1 = ExtractedMemory(
+        subject="user",
+        predicate="favorite_color",
+        value="blue",
+        memory_type="preference",
+        importance=0.5,
+        confidence=1.0
+    )
+    store.insert_memory(mem1, "My favorite color is blue")
+
+    mem2 = ExtractedMemory(
+        subject="user.sister",
+        predicate="name",
+        value="Neha",
+        memory_type="relationship",
+        importance=0.8,
+        confidence=1.0
+    )
+    store.insert_memory(mem2, "My sister's name is Neha")
+
+    mem3 = ExtractedMemory(
+        subject="user",
+        predicate="hobby",
+        value="reading",
+        memory_type="interest",
+        importance=0.7,
+        confidence=1.0
+    )
+    store.insert_memory(mem3, "I enjoy reading books")
+
+    # Filter by subject
+    mems = store.get_all_active_memories(subject="user")
+    assert len(mems) == 2
+    assert any(m['predicate'] == "favorite_color" for m in mems)
+    assert any(m['predicate'] == "hobby" for m in mems)
+
+    # Filter by predicate
+    mems = store.get_all_active_memories(predicate="name")
+    assert len(mems) == 1
+    assert mems[0]['subject'] == "user.sister"
+    assert mems[0]['value'] == "Neha"
+
+    # Filter by subject and predicate
+    mems = store.get_all_active_memories(subject="user", predicate="hobby")
+    assert len(mems) == 1
+    assert mems[0]['value'] == "reading"
+
+    # Filter with no results
+    mems = store.get_all_active_memories(subject="user.brother")
+    assert len(mems) == 0
+
+    mems = store.get_all_active_memories(subject="user", predicate="name")
+    assert len(mems) == 0
